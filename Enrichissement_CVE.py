@@ -1,46 +1,3 @@
-#%%
-import feedparser
-
-def get_rss_feed(display = False):
-    url = "https://www.cert.ssi.gouv.fr/actualite/feed/"
-    rss_feed = feedparser.parse(url)
-
-    #/avis/alerte/feed/
-    #/actualite/feed/
-
-    #display of the rss_feed
-
-    if(display):
-        for entry in rss_feed.entries:
-            print("Titre :", entry.title)
-            print("Description:", entry.description)
-            print("Lien :", entry.link)
-            print("Date :", entry.published)
-
-    return rss_feed
-
-
-#%%
-
-import requests
-import re
-url = "https://www.cert.ssi.gouv.fr/alerte/CERTFR-2024-ALE-001/json/"
-response = requests.get(url)
-data = response.json()
-#Extraction des CVE reference dans la clé cves du dict data
-ref_cves=list(data["cves"])
-#attention il s’agit d’une liste des dictionnaires avec name et url comme clés
-print( "CVE référencés ", ref_cves)
-# Extraction des CVE avec une regex
-cve_pattern = r"CVE-\d{4}-\d{4,7}"
-cve_list = list(set(re.findall(cve_pattern, str(data))))
-print("CVE trouvés :", cve_list)
-
-
-#%%
-
-# API CVE ________________________________________________________________
-
 def connect_API_CVE(display = False):
     import requests
     cve_id = "CVE-2023-24488"
@@ -76,9 +33,7 @@ def connect_API_CVE(display = False):
         print(f"Type CWE : {cwe}")
         print(f"CWE Description : {cwe_desc}")
 
-
-
-# API EPSS _______________________________________________________________
+    return data, cve_id, description, cvss_score, cwe, cwe_desc
 
 def connect_API_EPSS(display = False):
 
@@ -101,8 +56,4 @@ def connect_API_EPSS(display = False):
         if display:
             print(f"Aucun score EPSS trouvé pour {cve_id}")
 
-
-
-            
-
-
+    return data
