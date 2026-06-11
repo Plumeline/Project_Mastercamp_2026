@@ -9,8 +9,8 @@ def main():
     
     """
     print("=== Étape 1 : Téléchargement des bulletins ANSSI ===")
-    traiter_flux("https://www.cert.ssi.gouv.fr/avis/feed", "avis")
-    traiter_flux("https://www.cert.ssi.gouv.fr/alerte/feed", "alertes")
+    traiter_flux("https://www.cert.ssi.gouv.fr/feed/", "avis")
+    traiter_flux("https://www.cert.ssi.gouv.fr/feed/", "alertes")
 
     print("\n=== Étape 2 : Extraction des CVE depuis les bulletins ===")
     extraire_cves_depuis_fichiers("avis")
