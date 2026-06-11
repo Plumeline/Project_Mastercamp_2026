@@ -1,6 +1,9 @@
 import feedparser
 import copy
 
+URL_AVIS = "https://www.cert.ssi.gouv.fr/avis/feed/"
+URL_ALERT =  "https://www.cert.ssi.gouv.fr/alerte/feed/"
+
 def get_rss_feed(url, display = False):
 
     rss_feed = feedparser.parse(url)
@@ -43,8 +46,8 @@ def get_cleaned_rss_feed(url):
     return cleaned_rss
 
 
-url = "https://www.cert.ssi.gouv.fr/avis/feed/"
+
 #rss = get_rss_feed(url, True)
 
-print(get_cleaned_rss_feed(url))
+print(get_cleaned_rss_feed(URL_ALERT))
 #print(rss)
