@@ -70,28 +70,83 @@ def get_CSS_data(cve_id, display = False):
     import requests
     #cve_id = "CVE-2023-24488"
     url = f"https://cveawg.mitre.org/api/cve/{cve_id}"
-    response = requests.get(url)
-    data = response.json()
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    except Exception as e:
+        print(f"[✘] Erreur lors de la récupération des données MITRE pour {cve_id}: {e}")
+        return [cve_id, "Non disponible", "Non disponible", "Non disponible", "Non disponible", []]
+    
+    # Vérifier la structure de la réponse
+    if "containers" not in data or "cna" not in data.get("containers", {}):
+        print(f"[✘] Structure API invalide pour {cve_id}")
+        return [cve_id, "Non disponible", "Non disponible", "Non disponible", "Non disponible", []]
+    
     # Extraire la description
-    description = data["containers"]["cna"]["descriptions"][0]["value"]
+    try:
+        description = data["containers"]["cna"]["descriptions"][0]["value"]
+    except (KeyError, IndexError, TypeError):
+        description = "Non disponible"
     # Extraire le score CVSS
     #ATTENTION tous les CVE ne contiennent pas nécessairement ce champ, gérez l’exception,
     #ou peut etre au lieu de cvssV3_0 c’est cvssV3_1 ou autre clé
-    cvss_score =data["containers"]["cna"]["metrics"][0]["cvssV3_1"]["baseScore"]
+    #print('data : ', data)
+
+    #print(data["containers"]["cna"].keys())
+
+
+    
+    cvss_score = None
+    try:
+        # Chercher les données CVSS dans les différentes clés possibles
+        metrics = data["containers"]["cna"].get("metrics", [])
+        if metrics:
+            cvss_score = metrics[0].get("cvssV3_1", {}).get("baseScore")
+        
+        # Si pas trouvé, chercher dans d'autres clés possibles
+        if cvss_score is None:
+            for key, value in data["containers"]["cna"].items():
+                if isinstance(value, list) and len(value) > 0:
+                    if isinstance(value[0], dict) and "cvssV3_1" in value[0]:
+                        cvss_score = value[0]["cvssV3_1"].get("baseScore")
+                        break
+                    elif isinstance(value[0], dict) and "cvssV3_0" in value[0]:
+                        cvss_score = value[0]["cvssV3_0"].get("baseScore")
+                        break
+        #Si après avoir fait tout ça on a toujours pas trouvé le cvss_score, on abandonne et le set a None
+        if cvss_score is None:
+            cvss_score = "Non disponible"
+    except (KeyError, IndexError, TypeError):
+        cvss_score = "Non disponible"
+
+    #après le cvss score, on essaie de trouver le cwe
     cwe = "Non disponible"
     cwe_desc="Non disponible"
+
+    #on cherche le type de problème dans data->containers->cna->problemTypes
     problemtype = data["containers"]["cna"].get("problemTypes", {})
-    if problemtype and "descriptions" in problemtype[0]:
-        cwe = problemtype[0]["descriptions"][0].get("cweId", "Non disponible")
-        cwe_desc=problemtype[0]["descriptions"][0].get("description", "Non disponible")
+
+    #on checke si problemType contient bien une liste non nulle
+    if problemtype and isinstance(problemtype, list) and len(problemtype) > 0:
+        #si on trouve la description dans le type de problème,
+        if "descriptions" in problemtype[0]:
+            #on peut affecter le cwe et sa description
+            cwe = problemtype[0]["descriptions"][0].get("cweId", "Non disponible")
+            cwe_desc=problemtype[0]["descriptions"][0].get("description", "Non disponible")
+    
     # Extraire les produits affectés
-    affected = data["containers"]["cna"]["affected"]
-    for product in affected:
-        vendor = product["vendor"]
-        product_name = product["product"]
-        versions = [v["version"] for v in product["versions"] if v["status"] == "affected"]
-        if(display):
-            print(f"Éditeur : {vendor}, Produit : {product_name}, Versions : {', '.join(versions)}")
+    affected = []
+    try:
+        affected = data["containers"]["cna"].get("affected", [])
+        for product in affected:
+            vendor = product.get("vendor", "Non disponible")
+            product_name = product.get("product", "Non disponible")
+            versions = [v["version"] for v in product.get("versions", []) if v.get("status") == "affected"]
+            if(display):
+                print(f"Éditeur : {vendor}, Produit : {product_name}, Versions : {', '.join(versions)}")
+    except (KeyError, IndexError, TypeError) as e:
+        print(f"[✘] Erreur lors de l'extraction des produits affectés: {e}")
 
     # Afficher les résultats
     if (display):
@@ -101,7 +156,12 @@ def get_CSS_data(cve_id, display = False):
         print(f"Type CWE : {cwe}")
         print(f"CWE Description : {cwe_desc}")
 
+    #dans tous les cas, on retournera une liste. En cas d'erreur, celle ci contiendre des None dans les colonnes
+    # où la valeur ne pouvait pas être trouvée
     return [cve_id, description, cvss_score, cwe, cwe_desc, affected]
+
+
+
 
 def get_EPSS_data(cve_id, display = False):
 
@@ -109,22 +169,34 @@ def get_EPSS_data(cve_id, display = False):
     # URL de l'API EPSS pour récupérer la probabilité d'exploitation
     #cve_id = "CVE-2023-46805"
     url = f"https://api.first.org/data/v1/epss?cve={cve_id}"
-    # Requête GET pour récupérer les données JSON
-    response = requests.get(url)
-    data = response.json()
+    try:
+        # Requête GET pour récupérer les données JSON
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    except Exception as e:
+
+        print(f"[✘] Erreur lors de la récupération des données EPSS pour {cve_id}: {e}")
+        return [cve_id, -1]
+    
     # Extraire le score EPSS
-    epss_data = data.get("data", [])
-    if epss_data:
-        epss_score = epss_data[0]["epss"]
+    try:
+        epss_data = data.get("data", [])
+        if epss_data and isinstance(epss_data, list) and len(epss_data) > 0:
+            epss_score = epss_data[0].get("epss", -1)
 
-        if display:
-            print(f"CVE : {cve_id}")
-            print(f"Score EPSS : {epss_score}")
-        return [cve_id, epss_score]
-    else:
-        if display:
-            print(f"Aucun score EPSS trouvé pour {cve_id}")
+            if display:
+                print(f"CVE : {cve_id}")
+                print(f"Score EPSS : {epss_score}")
+            return [cve_id, epss_score]
+        else:
+            if display:
+                print(f"Aucun score EPSS trouvé pour {cve_id}")
+    except (KeyError, IndexError, TypeError) as e:
+        print(f"[x] Erreur lors de l'extraction du score EPSS: {e}")
 
+    #si on arrive pas à obtenir la valeur, étant donné qu'il s'agit d'une probabilité, on utilise -1 comme signalétique
+    # d'erreur
     return [cve_id, -1]
 
 
@@ -148,6 +220,8 @@ def new_enrichissement(cve_id):
 
     css.append(epss[1])
 
+    #On met un sleep pour éviter de bombarder le serveur de requêtes. Cela ralentit considérablement le processus,
+    #mais évite de faire crasher le site hôte ou de se faire bannir à cause d'une tentative de DDOS involontaire.
     sleep(1)
 
     return css
@@ -166,7 +240,7 @@ def new_enrichissement_from_rss(rss):
     """
 
     rss_CVEs = {}
-
+    print("RSS : ",rss)
     for alert in rss:
         link = alert['link']
         cve_list = CVE_extraction.get_CVE_extraction(link)
@@ -179,3 +253,11 @@ def new_enrichissement_from_rss(rss):
 
     return rss_CVEs
 
+
+import RSS_extraction
+
+test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_AVIS)
+
+rss_CEVs = new_enrichissement_from_rss(test)
+
+print(rss_CEVs)
