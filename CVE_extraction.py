@@ -1,7 +1,9 @@
-def get_CVE_extraction(display = False):
+def get_CVE_extraction(url, display = False):
     import requests
     import re
-    url = "https://www.cert.ssi.gouv.fr/alerte/CERTFR-2024-ALE-001/json/"
+
+
+    url+= "json/"
     response = requests.get(url)
     data = response.json()
     #Extraction des CVE reference dans la clé cves du dict data
@@ -15,4 +17,8 @@ def get_CVE_extraction(display = False):
     cve_list = list(set(re.findall(cve_pattern, str(data))))
     if display:
         print("CVE trouvés :", cve_list)
-    return data
+    return ref_cves, cve_list
+
+#url = "https://www.cert.ssi.gouv.fr/alerte/CERTFR-2024-ALE-001/"
+#a,b = get_CVE_extraction(url)
+#print(a)

@@ -60,9 +60,9 @@ def enrichissement():
         
         
 
-def connect_API_CVE(display = False):
+def get_CSS_data(cve_id, display = False):
     import requests
-    cve_id = "CVE-2023-24488"
+    #cve_id = "CVE-2023-24488"
     url = f"https://cveawg.mitre.org/api/cve/{cve_id}"
     response = requests.get(url)
     data = response.json()
@@ -95,13 +95,13 @@ def connect_API_CVE(display = False):
         print(f"Type CWE : {cwe}")
         print(f"CWE Description : {cwe_desc}")
 
-    return data, cve_id, description, cvss_score, cwe, cwe_desc
+    return [cve_id, description, cvss_score, cwe, cwe_desc, affected]
 
-def connect_API_EPSS(display = False):
+def get_EPSS_data(cve_id, display = False):
 
     import requests
     # URL de l'API EPSS pour récupérer la probabilité d'exploitation
-    cve_id = "CVE-2023-46805"
+    #cve_id = "CVE-2023-46805"
     url = f"https://api.first.org/data/v1/epss?cve={cve_id}"
     # Requête GET pour récupérer les données JSON
     response = requests.get(url)
@@ -114,8 +114,9 @@ def connect_API_EPSS(display = False):
         if display:
             print(f"CVE : {cve_id}")
             print(f"Score EPSS : {epss_score}")
+        return [cve_id, epss_score]
     else:
         if display:
             print(f"Aucun score EPSS trouvé pour {cve_id}")
 
-    return data
+    return [cve_id, -1]
