@@ -47,7 +47,7 @@ def get_cleaned_rss_feed(url):
 
 
 
-#rss = get_rss_feed(url, True)
 
-#print(get_cleaned_rss_feed(URL_ALERT))
+
+print(get_cleaned_rss_feed(URL_ALERT))
 #print(rss)

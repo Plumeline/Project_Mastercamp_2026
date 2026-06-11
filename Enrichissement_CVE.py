@@ -1,8 +1,14 @@
 import os
 import json
+from time import sleep
+
 import requests
 import re
 import time
+
+
+
+
 def enrichissement():
     os.makedirs("data/mitre", exist_ok=True)
     os.makedirs("data/first", exist_ok=True)
@@ -120,3 +126,56 @@ def get_EPSS_data(cve_id, display = False):
             print(f"Aucun score EPSS trouvé pour {cve_id}")
 
     return [cve_id, -1]
+
+
+import CVE_extraction
+
+
+
+def new_enrichissement(cve_id):
+    """
+    returns a list of the information taken from the APIs to be added to the dataset.
+    The list is of the form :
+    [cve_id, description, cvss_score, cwe, cwe_desc, affected, epss_score]
+
+    :param cve_id: id of the cve whose information will be returned
+    :return: a list of the information taken from the APIs to be added to the dataset.
+    """
+
+    epss = get_EPSS_data(cve_id)
+
+    css = get_CSS_data(cve_id)
+
+    css.append(epss[1])
+
+    sleep(1)
+
+    return css
+
+def new_enrichissement_from_rss(rss):
+
+    """
+    Returns a structure of data of the form :
+    {title_of_alert : list_of_CVES_information }
+    the list_of_CVES_information is a list of lists. Each sublist is an output of the function new_enrichissment(cve_id)
+    these sublists contain a list of the form :
+    [cve_id, description, cvss_score, cwe, cwe_desc, affected, epss_score]
+
+    :param rss: the data coming from the RSS_extraction function
+    :return: a dictionnary which returns the extra info of each CVEs for each alert (n alerts and n*k CVEs info)
+    """
+
+    rss_CVEs = {}
+
+    for alert in rss:
+        link = alert['link']
+        cve_list = CVE_extraction.get_CVE_extraction(link)
+        cves_enriched =[]
+
+        for cve in cve_list :
+            cves_enriched.append(new_enrichissement(cve))
+
+        rss_CVEs[alert['title']] = cves_enriched
+
+    return rss_CVEs
+

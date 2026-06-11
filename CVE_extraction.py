@@ -17,7 +17,7 @@ def get_CVE_extraction(url, display = False):
     cve_list = list(set(re.findall(cve_pattern, str(data))))
     if display:
         print("CVE trouvés :", cve_list)
-    return ref_cves, cve_list
+    return cve_list
 
 #url = "https://www.cert.ssi.gouv.fr/alerte/CERTFR-2024-ALE-001/"
 #a,b = get_CVE_extraction(url)
