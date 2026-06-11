@@ -1,3 +1,65 @@
+import os
+import json
+import requests
+import re
+import time
+def enrichissement():
+    os.makedirs("data/mitre", exist_ok=True)
+    os.makedirs("data/first", exist_ok=True)
+    
+    bulletin_dirs = ["data/avis", "data/alertes"]
+    
+    cve_pattern = r"CVE-\d{4}-\d{4,7}"
+    cve_trouvees = set()
+    
+    for folder in bulletin_dirs:
+        if not os.path.exists(folder):
+            continue
+    
+        for file in os.listdir(folder):
+            if not file.endswith(".json"):
+                continue
+    
+            with open(os.path.join(folder, file), encoding="utf-8") as f:
+                try:
+                    contenu = json.load(f)
+                except:
+                    continue
+                texte = json.dumps(contenu)
+                cves = re.findall(cve_pattern, texte)
+                cve_trouvees.update(cves)
+    
+    for cve_id in sorted(cve_trouvees):
+        print(f" Traitement de {cve_id}")
+    
+        mitre_path = os.path.join("data/mitre", f"{cve_id}.json")
+        if not os.path.exists(mitre_path):
+            try:
+                url_mitre = f"https://cveawg.mitre.org/api/cve/{cve_id}"
+                response = requests.get(url_mitre, timeout=10)
+                response.raise_for_status()
+                with open(mitre_path, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+                print(f"[✔] MITRE OK → {mitre_path}")
+            except Exception as e:
+                print(f"[✘] MITRE FAIL → {e}")
+    
+        first_path = os.path.join("data/first", f"{cve_id}.json")   
+        if not os.path.exists(first_path):
+            try:
+                url_epss = f"https://api.first.org/data/v1/epss?cve={cve_id}"
+                response = requests.get(url_epss, timeout=10)
+                response.raise_for_status()
+                with open(first_path, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+                print(f"[✔] FIRST OK → {first_path}")
+            except Exception as e:
+                print(f"[✘] FIRST FAIL → {e}")
+    
+        time.sleep(1)
+        
+        
+
 def connect_API_CVE(display = False):
     import requests
     cve_id = "CVE-2023-24488"
