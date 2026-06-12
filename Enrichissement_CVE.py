@@ -6,7 +6,7 @@ import requests
 import re
 import time
 
-
+from pandas import DataFrame
 
 
 def enrichissement():
@@ -255,9 +255,39 @@ def new_enrichissement_from_rss(rss):
 
 
 import RSS_extraction
+import pandas as pd
+
 
 test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_AVIS)
 
-rss_CEVs = new_enrichissement_from_rss(test)
+rss_CVEs = new_enrichissement_from_rss(test)
 
-print(rss_CEVs)
+
+with open("data/rss_CVEs_raw.json", "w", encoding="utf-8") as f:
+    # 'affected' est une liste de dicts, json.dumps la sérialise proprement
+    json.dump(rss_CVEs, f, ensure_ascii=False, indent=2, default=str)
+print("[✔] Sauvegarde JSON intermédiaire → data/rss_CVEs_raw.json")
+
+# Aplatir la structure {titre_alerte: [[cve_id, desc, cvss, cwe, cwe_desc, affected, epss], ...]}
+# en une liste de dicts, une ligne par CVE, avec le titre de l'alerte comme colonne supplémentaire
+COLUMNS = ["cve_id", "description", "cvss_score", "cwe", "cwe_desc", "affected", "epss_score"]
+
+rows = []
+for alert_title, cve_list in rss_CVEs.items():
+    for cve_data in cve_list:
+        # Sécurité : compléter avec None si la liste est plus courte que prévu
+        padded = list(cve_data) + [None] * (len(COLUMNS) - len(cve_data))
+        row = dict(zip(COLUMNS, padded))
+        row["alert_title"] = alert_title
+        # 'affected' est une liste de dicts : on la sérialise en JSON string pour le CSV
+        if isinstance(row["affected"], (list, dict)):
+            row["affected"] = json.dumps(row["affected"], ensure_ascii=False, default=str)
+        rows.append(row)
+
+df_cve = pd.DataFrame(rows, columns=["alert_title"] + COLUMNS)
+
+df_cve.to_csv("data/cve_data.csv", index=False, encoding="utf-8")
+print(f"[✔] CSV exporté → data/cve_data.csv ({len(df_cve)} lignes, {len(df_cve.columns)} colonnes)")
+print(df_cve.head())
+
+
