@@ -291,3 +291,26 @@ print(f"[✔] CSV exporté → data/cve_data.csv ({len(df_cve)} lignes, {len(df_
 print(df_cve.head())
 
 
+#%%
+#PART TO CLEAN THE FULL DATA :
+
+import pandas as pd
+
+df = pd.read_csv("data/cve_data.csv")
+
+import ast
+df["affected"] = df["affected"].apply(ast.literal_eval)
+
+
+df = df.explode("affected").reset_index(drop=True)
+
+affected_normalized = pd.json_normalize(df["affected"])[["vendor", "product", "versions"]]
+
+df = pd.concat([df.drop(columns="affected"), affected_normalized], axis=1)
+
+
+df["versions"] = df["versions"].apply(
+    lambda lst: [d["version"] for d in lst] if isinstance(lst, list) else lst
+)
+
+df.to_csv("data/cve_data_cleaned.csv", index=False, encoding="utf-8")
