@@ -5,8 +5,16 @@ import re
 from datetime import datetime
 
 def consolidation():
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Projet/data"))
-    bulletin_dirs = [os.path.join(base_dir, "avis"), os.path.join(base_dir, "alertes")]
+    # Recherche du dossier data (sur le bureau ou en relatif)
+    base_dir = os.path.expanduser("~/Desktop/data")
+    if not os.path.exists(base_dir):
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data"))
+        if not os.path.exists(base_dir):
+            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
+
+    avis_dir = os.path.join(base_dir, "Avis") if os.path.exists(os.path.join(base_dir, "Avis")) else os.path.join(base_dir, "avis")
+    alertes_dir = os.path.join(base_dir, "alertes")
+    bulletin_dirs = [avis_dir, alertes_dir]
     mitre_dir = os.path.join(base_dir, "mitre")
     first_dir = os.path.join(base_dir, "first")
 
@@ -42,9 +50,13 @@ def consolidation():
 
         print(f"\nLecture de {folder}")
         fichiers = os.listdir(folder)
-        print(f"Fichiers trouvés : {len(fichiers)}")
+        total_files = len(fichiers)
+        print(f"Fichiers trouvés : {total_files}")
 
-        for file in fichiers:
+        for idx, file in enumerate(fichiers):
+            if idx % 5000 == 0:
+                print(f"➡ [{os.path.basename(folder)}] {idx} / {total_files} fichiers traités...")
+
             full_path = os.path.join(folder, file)
             if not os.path.isfile(full_path):
                 continue
@@ -58,7 +70,7 @@ def consolidation():
 
             bulletin_id = os.path.splitext(file)[0]
             titre = bulletin.get("title", "")
-            type_bulletin = "Alerte" if "alertes" in folder else "Avis"
+            type_bulletin = "Alerte" if "alertes" in folder.lower() else "Avis"
             description = bulletin.get("description", "")
 
             ref_cert = bulletin.get("reference", "")
@@ -72,9 +84,6 @@ def consolidation():
                 texte = json.dumps(bulletin)
                 cve_matches = set(re.findall(r"CVE-\d{4}-\d{4,7}", texte))
                 cves = [{"name": cve} for cve in cve_matches]
-                print(f"[⚠] {file} : Clé 'cves' manquante. Regex : {len(cves)}")
-            else:
-                print(f"[✔] {file} : {len(cves)} CVE trouvée(s).")
 
             for cve in cves:
                 cve_id = cve.get("name", "")
@@ -137,7 +146,6 @@ def consolidation():
                     "Produit": product,
                     "Versions affectées": versions
                 })
-                print(f"→ CVE ajoutée : {cve_id}")
 
     df = pd.DataFrame(rows)
     output_path = os.path.join(os.path.dirname(__file__), "consolidated_cve_data.csv")
