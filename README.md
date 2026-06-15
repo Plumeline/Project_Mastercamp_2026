@@ -11,7 +11,8 @@ Ce projet a été réalisé dans le cadre du cours de Python (EFREI 2026). Il co
 3. [Structure du Projet](#-structure-du-projet)
 4. [Description des Fichiers du Pipeline](#-description-des-fichiers-du-pipeline)
 5. [Comment lancer le projet](#-comment-lancer-le-projet)
-6. [Détails des Étapes Réalisées](#-détails-des-étapes-réalisées)
+6. [Points de Vigilance Importants](#-points-de-vigilance-importants)
+7. [Détails des Étapes Réalisées](#-détails-des-étapes-réalisées)
 
 ---
 
@@ -93,6 +94,19 @@ Le projet est organisé comme suit :
    python3 envoie_mail.py
    ```
    *(Note : Vous pouvez modifier l'adresse e-mail de réception et d'envoi dans le fichier `envoie_mail.py`)*.
+
+---
+
+## ⚠️ Points de Vigilance Importants
+
+* **Délai entre les requêtes d'API (*Rate Limiting*)** :
+  Pour éviter d'être banni temporairement ou de surcharger les serveurs de l'API publique de MITRE et FIRST, veillez à toujours conserver l'instruction `time.sleep(1)` ou `sleep(2)` lors de l'exécution des requêtes HTTP d'enrichissement.
+* **Configuration des Identifiants E-mail (SMTP)** :
+  Dans le script `envoie_mail.py`, il est requis de configurer votre adresse e-mail d'envoi et un **mot de passe d'application** (généré depuis votre compte Google/Outlook, et non pas votre mot de passe d'accès classique) afin de passer avec succès l'authentification sécurisée SMTP TLS.
+* **Intégrité de la structure des données** :
+  Le notebook Jupyter utilise les fichiers CSV pré-téléchargés dans `backup/`. Si vous modifiez manuellement ces CSV, veillez à conserver le nom des colonnes brutes (`cvss_score`, `cwe`, `vendor`, `published`, etc.) pour éviter les plantages lors du processus de renommage automatique dans le notebook.
+* **Anonymat des Rendus (Règle de Notation)** :
+  Conformément aux directives de la page 10 du sujet, **tous les fichiers livrés (code, notebook, vidéo) doivent être strictement anonymes** et ne doivent contenir aucune mention explicite de vos noms, prénoms ou identifiants personnels.
 
 ---
 
