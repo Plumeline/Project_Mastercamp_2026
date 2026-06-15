@@ -1,3 +1,5 @@
+
+#%%
 import os
 import json
 from time import sleep
@@ -243,7 +245,14 @@ def new_enrichissement_from_rss(rss):
     print("RSS : ",rss)
     for alert in rss:
         link = alert['link']
-        cve_list = CVE_extraction.get_CVE_extraction(link)
+
+        try:
+            cve_list = CVE_extraction.get_CVE_extraction(link)
+        except requests.exceptions.ConnectionError as e:
+            print(f"[✘] Connexion échouée pour {link}, alerte ignorée : {e}")
+            continue
+
+
         cves_enriched =[]
 
         for cve in cve_list :
@@ -266,6 +275,9 @@ to_get = RSS_extraction.URL_AVIS                                                
 
 test = RSS_extraction.get_cleaned_rss_feed(to_get)
 
+
+testdf = pd.DataFrame(test)
+testdf.to_csv("data/RSS_AVIS.csv")
 
 rss_CVEs = new_enrichissement_from_rss(test)
 
@@ -325,18 +337,25 @@ df.to_csv("data/cve_data_cleaned_AVIS.csv", index=False, encoding="utf-8")
 
 
 if not 'test' in globals():
-    test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_AVIS)
+    test = pd.read_csv("data/RSS_AVIS.csv")
+    print(test)
 
-test_df = pd.DataFrame(test)
+if(type(test) != DataFrame):
+    test_df = pd.DataFrame(test)
+else :
+    test_df = test
+
+
+
 
 final_AVIS = pd.merge(test_df, df, left_on="title", right_on="alert_title")
 
 final_AVIS.columns = ['title', 'description_alert', 'link', 'published', 'alert_title', 'cve_id', 'description_cve', 'cvss_score', 'cwe', 'cwe_desc', 'epss_score',
        'vendor', 'product', 'versions']
 
-print(final_AVIS.keys())
 
-final_AVIS.to_csv("full_cleaned_AVIS.csv",  encoding="utf-8")
+
+final_AVIS.to_csv("data/full_cleaned_AVIS.csv",  encoding="utf-8")
 
 
 
@@ -348,6 +367,9 @@ import pandas as pd
 to_get = RSS_extraction.URL_ALERT
 
 test = RSS_extraction.get_cleaned_rss_feed(to_get)
+
+testdf = pd.DataFrame(test)
+testdf.to_csv("data/RSS_ALERT.csv")
 
 
 rss_CVEs = new_enrichissement_from_rss(test)
@@ -388,7 +410,7 @@ import RSS_extraction
 import pandas as pd
 
 df = pd.read_csv("data/cve_data_ALERT.csv")
-
+print("debug : df : \n", df.head())
 import ast
 df["affected"] = df["affected"].apply(ast.literal_eval)
 
@@ -408,17 +430,23 @@ df.to_csv("data/cve_data_cleaned_ALERT.csv", index=False, encoding="utf-8")
 
 
 if not 'test' in globals():
-    test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_ALERT)
+    test = pd.read_csv("data/RSS_ALERT.csv")
+    print(test)
 
-test_df = pd.DataFrame(test)
+if(type(test) != DataFrame):
+    test_df = pd.DataFrame(test)
+else :
+    test_df = test
+
+
 
 final_ALERT = pd.merge(test_df, df, left_on="title", right_on="alert_title")
 
 final_ALERT.columns = ['title', 'description_alert', 'link', 'published', 'alert_title', 'cve_id', 'description_cve', 'cvss_score', 'cwe', 'cwe_desc', 'epss_score',
        'vendor', 'product', 'versions']
 
-print(final_ALERT.keys())
+print("final shape : ", final_ALERT.shape)
 
-final_ALERT.to_csv("full_cleaned_ALERT.csv",  encoding="utf-8")
+final_ALERT.to_csv("data/full_cleaned_ALERT.csv",  encoding="utf-8")
 
 
