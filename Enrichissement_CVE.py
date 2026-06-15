@@ -258,15 +258,22 @@ import RSS_extraction
 import pandas as pd
 
 
-test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_AVIS)
+
+#%% GET THE AVIS DATA
+to_get = RSS_extraction.URL_AVIS                                                                      #=
+
+
+
+test = RSS_extraction.get_cleaned_rss_feed(to_get)
+
 
 rss_CVEs = new_enrichissement_from_rss(test)
 
 
-with open("data/rss_CVEs_raw.json", "w", encoding="utf-8") as f:
+with open("data/rss_CVEs_raw_AVIS.json", "w", encoding="utf-8") as f:
     # 'affected' est une liste de dicts, json.dumps la sérialise proprement
     json.dump(rss_CVEs, f, ensure_ascii=False, indent=2, default=str)
-print("[✔] Sauvegarde JSON intermédiaire → data/rss_CVEs_raw.json")
+print("[✔] Sauvegarde JSON intermédiaire → data/rss_CVEs_raw_AVIS.json")
 
 # Aplatir la structure {titre_alerte: [[cve_id, desc, cvss, cwe, cwe_desc, affected, epss], ...]}
 # en une liste de dicts, une ligne par CVE, avec le titre de l'alerte comme colonne supplémentaire
@@ -286,17 +293,18 @@ for alert_title, cve_list in rss_CVEs.items():
 
 df_cve = pd.DataFrame(rows, columns=["alert_title"] + COLUMNS)
 
-df_cve.to_csv("data/cve_data.csv", index=False, encoding="utf-8")
-print(f"[✔] CSV exporté → data/cve_data.csv ({len(df_cve)} lignes, {len(df_cve.columns)} colonnes)")
+df_cve.to_csv("data/cve_data_AVIS.csv", index=False, encoding="utf-8")
+print(f"[✔] CSV exporté → data/cve_data_AVIS.csv ({len(df_cve)} lignes, {len(df_cve.columns)} colonnes)")
 print(df_cve.head())
+
 
 
 #%%
 #PART TO CLEAN THE FULL DATA :
-
+import RSS_extraction
 import pandas as pd
 
-df = pd.read_csv("data/cve_data.csv")
+df = pd.read_csv("data/cve_data_AVIS.csv")
 
 import ast
 df["affected"] = df["affected"].apply(ast.literal_eval)
@@ -313,4 +321,104 @@ df["versions"] = df["versions"].apply(
     lambda lst: [d["version"] for d in lst] if isinstance(lst, list) else lst
 )
 
-df.to_csv("data/cve_data_cleaned.csv", index=False, encoding="utf-8")
+df.to_csv("data/cve_data_cleaned_AVIS.csv", index=False, encoding="utf-8")
+
+
+if not 'test' in globals():
+    test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_AVIS)
+
+test_df = pd.DataFrame(test)
+
+final_AVIS = pd.merge(test_df, df, left_on="title", right_on="alert_title")
+
+final_AVIS.columns = ['title', 'description_alert', 'link', 'published', 'alert_title', 'cve_id', 'description_cve', 'cvss_score', 'cwe', 'cwe_desc', 'epss_score',
+       'vendor', 'product', 'versions']
+
+print(final_AVIS.keys())
+
+final_AVIS.to_csv("full_cleaned_AVIS.csv",  encoding="utf-8")
+
+
+
+
+#%% GET THE ALERT DATA
+import RSS_extraction
+import pandas as pd
+
+to_get = RSS_extraction.URL_ALERT
+
+test = RSS_extraction.get_cleaned_rss_feed(to_get)
+
+
+rss_CVEs = new_enrichissement_from_rss(test)
+
+
+with open("data/rss_CVEs_raw_ALERT.json", "w", encoding="utf-8") as f:
+    # 'affected' est une liste de dicts, json.dumps la sérialise proprement
+    json.dump(rss_CVEs, f, ensure_ascii=False, indent=2, default=str)
+print("[✔] Sauvegarde JSON intermédiaire → data/rss_CVEs_raw_ALERT.json")
+
+# Aplatir la structure {titre_alerte: [[cve_id, desc, cvss, cwe, cwe_desc, affected, epss], ...]}
+# en une liste de dicts, une ligne par CVE, avec le titre de l'alerte comme colonne supplémentaire
+COLUMNS = ["cve_id", "description", "cvss_score", "cwe", "cwe_desc", "affected", "epss_score"]
+
+rows = []
+for alert_title, cve_list in rss_CVEs.items():
+    for cve_data in cve_list:
+        # Sécurité : compléter avec None si la liste est plus courte que prévu
+        padded = list(cve_data) + [None] * (len(COLUMNS) - len(cve_data))
+        row = dict(zip(COLUMNS, padded))
+        row["alert_title"] = alert_title
+        # 'affected' est une liste de dicts : on la sérialise en JSON string pour le CSV
+        if isinstance(row["affected"], (list, dict)):
+            row["affected"] = json.dumps(row["affected"], ensure_ascii=False, default=str)
+        rows.append(row)
+
+df_cve = pd.DataFrame(rows, columns=["alert_title"] + COLUMNS)
+
+df_cve.to_csv("data/cve_data_ALERT.csv", index=False, encoding="utf-8")
+print(f"[✔] CSV exporté → data/cve_data_ALERT.csv ({len(df_cve)} lignes, {len(df_cve.columns)} colonnes)")
+print(df_cve.head())
+
+
+#%% CLEAN THE ALERT DATA
+
+#PART TO CLEAN THE FULL DATA :
+import RSS_extraction
+import pandas as pd
+
+df = pd.read_csv("data/cve_data_ALERT.csv")
+
+import ast
+df["affected"] = df["affected"].apply(ast.literal_eval)
+
+
+df = df.explode("affected").reset_index(drop=True)
+
+affected_normalized = pd.json_normalize(df["affected"])[["vendor", "product", "versions"]]
+
+df = pd.concat([df.drop(columns="affected"), affected_normalized], axis=1)
+
+
+df["versions"] = df["versions"].apply(
+    lambda lst: [d["version"] for d in lst] if isinstance(lst, list) else lst
+)
+
+df.to_csv("data/cve_data_cleaned_ALERT.csv", index=False, encoding="utf-8")
+
+
+if not 'test' in globals():
+    test = RSS_extraction.get_cleaned_rss_feed(RSS_extraction.URL_ALERT)
+
+test_df = pd.DataFrame(test)
+
+final_ALERT = pd.merge(test_df, df, left_on="title", right_on="alert_title")
+
+final_ALERT.columns = ['title', 'description_alert', 'link', 'published', 'alert_title', 'cve_id', 'description_cve', 'cvss_score', 'cwe', 'cwe_desc', 'epss_score',
+       'vendor', 'product', 'versions']
+
+print(final_ALERT.keys())
+
+final_ALERT.to_csv("full_cleaned_ALERT.csv",  encoding="utf-8")
+
+
